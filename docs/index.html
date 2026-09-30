@@ -1,1414 +1,158 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PRIME: Physical Priors from World Models for Embodied Manipulation</title>
-  <meta name="description"
-    content="PRIME overcomes the semantic compression bottleneck in VLA models through Joint Infusion of multi-level VLM representations into action diffusion.">
-  <meta property="og:title" content="PRIME: Physical Priors from World Models for Embodied Manipulation">
-  <meta property="og:description"
-    content="A novel architecture that dynamically integrates multi-level VLM representations into the action diffusion process.">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#081425">
+  <title>PRIME W0 — Physical Priors from World Models</title>
+  <meta name="description" content="PRIME W0: Physical Priors from World Models for Embodied Manipulation.">
+  <meta property="og:title" content="PRIME W0: Physical Priors from World Models for Embodied Manipulation">
+  <meta property="og:description" content="A hierarchical conditional flow-matching framework for embodied manipulation.">
   <meta property="og:type" content="website">
-
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap"
-    rel="stylesheet">
-
-  <!-- MathJax -->
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
-
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&display=swap" rel="stylesheet">
   <style>
-    /* ═══ Reset ══════════════════════════════════════════════════ */
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    :root {
-      --accent: #bd5d3a;
-      --accent-hover: #a04e30;
-      --bg: #eeece2;
-      --bg-card: rgba(238, 236, 226, 0.6);
-      --bg-footer: #e0ddd3;
-      --text: #3d3929;
-      --text-muted: rgba(61, 57, 41, 0.6);
-      --text-light: rgba(61, 57, 41, 0.8);
-      --border: rgba(61, 57, 41, 0.2);
-      --border-strong: #3d3929;
-      --shadow-brutal: 4px 4px 0px rgba(61, 57, 41, 0.25);
-      --shadow-brutal-hover: 6px 6px 0px rgba(189, 93, 58, 0.35);
-      --radius: 4px;
-      --max-width: 960px;
-      --font-serif: 'Newsreader', 'Times New Roman', 'Georgia', 'Garamond', serif;
-      --font-mono: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace;
-    }
-
-    html {
-      scroll-behavior: smooth;
-      overflow-x: hidden;
-    }
-
-    body {
-      font-family: var(--font-mono);
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.7;
-      font-size: 14px;
-      letter-spacing: 0.02em;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      overflow-x: hidden;
-    }
-
-    /* Dot grid texture overlay */
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-image: radial-gradient(circle, rgba(61, 57, 41, 0.15) 1px, transparent 1px);
-      background-size: 16px 16px;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    a {
-      color: var(--accent);
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-
-    a:hover {
-      color: var(--accent-hover);
-    }
-
-    /* ═══ Navbar ═════════════════════════════════════════════════ */
-    .navbar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 100;
-      background: rgba(238, 236, 226, 0.95);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid var(--border);
-      padding: 0 32px;
-      height: 52px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .navbar-inner {
-      width: 100%;
-      max-width: var(--max-width);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .navbar-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-family: var(--font-serif);
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--text);
-      letter-spacing: -0.01em;
-    }
-
-    .navbar-brand img {
-      height: 26px;
-    }
-
-    .navbar-links {
-      display: flex;
-      gap: 20px;
-    }
-
-    .navbar-links a {
-      font-size: 0.72rem;
-      font-weight: 500;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      transition: color 0.2s;
-    }
-
-    .navbar-links a:hover {
-      color: var(--accent);
-    }
-
-    /* ═══ Hero ═══════════════════════════════════════════════════ */
-    .hero {
-      margin-top: 52px;
-      padding: 80px 32px 60px;
-      text-align: center;
-      position: relative;
-      z-index: 1;
-    }
-
-    .hero-inner {
-      max-width: var(--max-width);
-      margin: 0 auto;
-    }
-
-    .hero-title {
-      font-family: var(--font-serif);
-      font-size: 3.2rem;
-      font-weight: 400;
-      line-height: 1.15;
-      color: var(--text);
-      margin-bottom: 20px;
-      letter-spacing: -0.02em;
-      border-left: 4px solid var(--accent);
-      border-right: 4px solid var(--accent);
-      display: inline-block;
-      padding: 0 1.5rem;
-    }
-
-    .hero-subtitle {
-      font-family: var(--font-mono);
-      font-size: 0.92rem;
-      color: var(--text-light);
-      max-width: 720px;
-      margin: 0 auto 28px;
-      line-height: 1.7;
-      letter-spacing: 0.02em;
-    }
-
-    .hero-authors {
-      font-family: var(--font-mono);
-      font-size: 0.88rem;
-      color: var(--text);
-      margin-bottom: 6px;
-    }
-
-    .hero-affiliation {
-      font-family: var(--font-mono);
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      margin-bottom: 28px;
-      letter-spacing: 0.03em;
-    }
-
-    .hero-affiliation a {
-      color: var(--accent);
-    }
-
-    /* Buttons — brutalist style */
-    .btn-group {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 22px;
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      cursor: pointer;
-      transition: all 0.25s ease;
-      border: 1px solid var(--border-strong);
-      text-decoration: none;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: var(--bg);
-      border-color: var(--accent);
-      box-shadow: var(--shadow-brutal);
-    }
-
-    .btn-primary:hover {
-      background: var(--accent-hover);
-      color: var(--bg);
-      border-color: var(--accent-hover);
-      box-shadow: var(--shadow-brutal-hover);
-      transform: translate(-2px, -2px);
-    }
-
-    .btn-outline {
-      background: var(--bg);
-      color: var(--text);
-      box-shadow: var(--shadow-brutal);
-    }
-
-    .btn-outline:hover {
-      background: var(--accent);
-      color: var(--bg);
-      border-color: var(--accent);
-      box-shadow: var(--shadow-brutal-hover);
-      transform: translate(-2px, -2px);
-    }
-
-    .btn:active {
-      box-shadow: 2px 2px 0px rgba(61, 57, 41, 0.2);
-      transform: translate(1px, 1px);
-    }
-
-    .btn svg {
-      width: 16px;
-      height: 16px;
-    }
-
-    /* ═══ Section Layout ═════════════════════════════════════════ */
-    .section {
-      padding: 72px 32px;
-      max-width: var(--max-width);
-      margin: 0 auto;
-      position: relative;
-      z-index: 1;
-    }
-
-    .section-alt {
-      background: rgba(224, 221, 211, 0.5);
-    }
-
-    .section-number {
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
-      color: var(--accent);
-      letter-spacing: 0.05em;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-    }
-
-    .section-title {
-      font-family: var(--font-serif);
-      font-size: 2.8rem;
-      font-weight: 400;
-      color: var(--text);
-      margin-bottom: 12px;
-      letter-spacing: -0.02em;
-    }
-
-    .section-subtitle {
-      font-family: var(--font-mono);
-      font-size: 0.88rem;
-      color: var(--text-muted);
-      margin-bottom: 48px;
-      line-height: 1.6;
-    }
-
-    /* ═══ Abstract ═══════════════════════════════════════════════ */
-    .abstract-box {
-      background: var(--bg-card);
-      backdrop-filter: blur(4px);
-      border: 1px solid var(--border);
-      padding: 36px 40px;
-      max-width: 100%;
-      margin: 0 auto;
-      line-height: 1.8;
-      color: var(--text-light);
-      font-size: 0.92rem;
-    }
-
-    .abstract-box strong {
-      color: var(--accent);
-      font-weight: 600;
-    }
-
-    .abstract-box em {
-      font-style: italic;
-    }
-
-    /* ═══ SE(3) Highlight ════════════════════════════════════════ */
-    .highlight-box {
-      background: var(--text);
-      padding: 40px 36px;
-      color: var(--bg);
-      max-width: 100%;
-      margin: 0 auto;
-      border: 1px solid var(--text);
-    }
-
-    .highlight-box h3 {
-      font-family: var(--font-serif);
-      font-size: 1.4rem;
-      margin-bottom: 16px;
-      font-weight: 400;
-      color: var(--accent);
-      letter-spacing: -0.01em;
-    }
-
-    .highlight-box p {
-      font-size: 0.9rem;
-      line-height: 1.8;
-      color: rgba(238, 236, 226, 0.8);
-    }
-
-    .highlight-box .keyword {
-      display: inline-block;
-      padding: 1px 7px;
-      background: rgba(189, 93, 58, 0.2);
-      color: var(--accent);
-      font-family: var(--font-mono);
-      font-size: 0.82rem;
-      border: 1px solid rgba(189, 93, 58, 0.3);
-    }
-
-    /* ═══ Method Cards ═══════════════════════════════════════════ */
-    .method-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-      margin-top: 36px;
-    }
-
-    .method-card {
-      background: var(--bg-card);
-      backdrop-filter: blur(4px);
-      border: 1px solid var(--border);
-      padding: 28px 24px;
-      transition: all 0.25s ease;
-    }
-
-    .method-card:hover {
-      border-color: var(--accent);
-      box-shadow: var(--shadow-brutal-hover);
-      transform: translate(-2px, -2px);
-    }
-
-    .method-card-icon {
-      width: 44px;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 16px;
-      border: 1px solid var(--border);
-    }
-
-    .method-card h3 {
-      font-family: var(--font-serif);
-      font-size: 1.15rem;
-      font-weight: 400;
-      margin-bottom: 10px;
-      letter-spacing: -0.01em;
-    }
-
-    .method-card p {
-      font-size: 0.82rem;
-      color: var(--text-light);
-      line-height: 1.7;
-    }
-
-    .method-card .tag {
-      display: inline-block;
-      padding: 3px 10px;
-      font-size: 0.68rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-top: 14px;
-      border: 1px solid var(--border);
-    }
-
-    .icon-hsr {
-      background: rgba(189, 93, 58, 0.08);
-      color: var(--accent);
-      border-color: rgba(189, 93, 58, 0.3);
-    }
-
-    .icon-plkv {
-      background: rgba(61, 57, 41, 0.06);
-      color: var(--text);
-      border-color: var(--border);
-    }
-
-    .icon-tgi {
-      background: rgba(189, 93, 58, 0.08);
-      color: var(--accent);
-      border-color: rgba(189, 93, 58, 0.3);
-    }
-
-    .tag-hsr {
-      background: rgba(189, 93, 58, 0.1);
-      color: var(--accent);
-      border-color: rgba(189, 93, 58, 0.3);
-    }
-
-    .tag-plkv {
-      background: rgba(61, 57, 41, 0.05);
-      color: var(--text);
-      border-color: var(--border);
-    }
-
-    .tag-tgi {
-      background: rgba(189, 93, 58, 0.1);
-      color: var(--accent);
-      border-color: rgba(189, 93, 58, 0.3);
-    }
-
-    /* ═══ Figure ═════════════════════════════════════════════════ */
-    .figure-container {
-      text-align: center;
-      margin: 48px auto;
-      max-width: 100%;
-    }
-
-    .figure-container img {
-      width: 100%;
-      border: 1px solid var(--border);
-    }
-
-    .figure-caption {
-      font-family: var(--font-mono);
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin-top: 12px;
-      line-height: 1.65;
-    }
-
-    /* ═══ Results Table ══════════════════════════════════════════ */
-    .results-table-wrap {
-      overflow-x: auto;
-      margin: 24px auto 0;
-      max-width: 100%;
-    }
-
-    .results-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.82rem;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      min-width: 760px;
-    }
-
-    .results-table th {
-      background: var(--text);
-      color: var(--bg);
-      padding: 12px 16px;
-      font-weight: 600;
-      text-align: center;
-      font-size: 0.72rem;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-
-    .results-table td {
-      padding: 10px 16px;
-      text-align: center;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .results-table tr:last-child td {
-      border-bottom: none;
-    }
-
-    .results-table tr:hover td {
-      background: rgba(189, 93, 58, 0.06);
-    }
-
-    .results-table .highlight {
-      font-weight: 700;
-      color: var(--accent);
-    }
-
-    .results-table .second {
-      text-decoration: underline;
-      text-underline-offset: 3px;
-      text-decoration-thickness: 1px;
-      font-weight: 600;
-    }
-
-    .results-table .ours {
-      background: rgba(189, 93, 58, 0.08);
-      font-weight: 600;
-    }
-
-    .table-caption {
-      margin: 28px 0 10px;
-      font-size: 0.82rem;
-      color: var(--text-light);
-      line-height: 1.6;
-    }
-
-    .table-caption strong {
-      color: var(--text);
-      font-weight: 600;
-    }
-
-    .results-note {
-      margin: 20px auto 0;
-      color: var(--text-light);
-      font-size: 0.9rem;
-      line-height: 1.75;
-    }
-
-    /* Stats row */
-    .stats-grid {
-      max-width: 100%;
-      margin: 32px auto 0;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
-
-    .stat-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      padding: 24px;
-      text-align: center;
-      transition: all 0.25s ease;
-    }
-
-    .stat-card:hover {
-      border-color: var(--accent);
-      box-shadow: var(--shadow-brutal-hover);
-      transform: translate(-2px, -2px);
-    }
-
-    .stat-value {
-      font-family: var(--font-serif);
-      font-size: 2.2rem;
-      font-weight: 400;
-      color: var(--accent);
-      letter-spacing: -0.02em;
-    }
-
-    .stat-label {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-top: 6px;
-      line-height: 1.5;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    /* ═══ Contributions ══════════════════════════════════════════ */
-    .contrib-list {
-      list-style: none;
-      max-width: 100%;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .contrib-item {
-      display: flex;
-      gap: 16px;
-      align-items: flex-start;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      padding: 20px 24px;
-      transition: all 0.25s ease;
-    }
-
-    .contrib-item:hover {
-      border-color: var(--accent);
-      box-shadow: var(--shadow-brutal-hover);
-      transform: translate(-2px, -2px);
-    }
-
-    .contrib-num {
-      flex-shrink: 0;
-      width: 32px;
-      height: 32px;
-      border: 1px solid var(--accent);
-      color: var(--accent);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 600;
-      font-size: 0.85rem;
-    }
-
-    .contrib-text {
-      font-size: 0.88rem;
-      color: var(--text-light);
-      line-height: 1.7;
-    }
-
-    .contrib-text strong {
-      color: var(--text);
-      font-weight: 600;
-    }
-
-    /* ═══ Paper & Citation ═══════════════════════════════════════ */
-    .paper-grid {
-      max-width: 100%;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-
-    .paper-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      padding: 28px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .paper-preview {
-      width: 140px;
-      height: 185px;
-      background: var(--text);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--bg);
-      font-family: var(--font-serif);
-      font-size: 0.78rem;
-      font-weight: 400;
-      text-align: center;
-      line-height: 1.4;
-      box-shadow: var(--shadow-brutal);
-    }
-
-    .bibtex-card {
-      background: var(--text);
-      border: 1px solid var(--text);
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .bibtex-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-
-    .bibtex-label {
-      color: var(--accent);
-      font-size: 0.78rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .bibtex-copy-btn {
-      background: rgba(238, 236, 226, 0.1);
-      border: 1px solid rgba(238, 236, 226, 0.2);
-      color: var(--bg);
-      padding: 4px 12px;
-      font-family: var(--font-mono);
-      font-size: 0.72rem;
-      cursor: pointer;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      transition: all 0.2s;
-    }
-
-    .bibtex-copy-btn:hover {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: var(--bg);
-    }
-
-    .bibtex-code {
-      color: rgba(238, 236, 226, 0.75);
-      font-family: var(--font-mono);
-      font-size: 0.78rem;
-      line-height: 1.7;
-      flex: 1;
-      overflow-x: auto;
-      white-space: pre;
-      margin: 0;
-    }
-
-    /* ═══ Footer ═════════════════════════════════════════════════ */
-    .footer {
-      background: var(--bg-footer);
-      border-top: 1px solid rgba(189, 93, 58, 0.15);
-      padding: 28px 32px;
-      text-align: center;
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      position: relative;
-      z-index: 1;
-      letter-spacing: 0.02em;
-    }
-
-    .footer a {
-      color: var(--accent);
-    }
-
-    .footer-inner {
-      max-width: var(--max-width);
-      margin: 0 auto;
-    }
-
-    .footer-title {
-      font-family: var(--font-serif);
-      font-size: 1.3rem;
-      font-weight: 400;
-      color: var(--text);
-      margin-bottom: 6px;
-      letter-spacing: -0.01em;
-    }
-
-    /* ═══ Responsive ═════════════════════════════════════════════ */
-    @media (max-width: 768px) {
-      .hero-title {
-        font-size: 1.8rem;
-        padding: 0 0.8rem;
-        border-left-width: 3px;
-        border-right-width: 3px;
-      }
-
-      .hero-subtitle {
-        font-size: 0.85rem;
-      }
-
-      .section-title {
-        font-size: 2rem;
-      }
-
-      .method-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .stats-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .paper-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .navbar-links {
-        gap: 12px;
-      }
-
-      .navbar-links a {
-        font-size: 0.68rem;
-      }
-
-      .section {
-        padding: 48px 20px;
-      }
-
-      .abstract-box {
-        padding: 24px 20px;
-      }
-
-      .highlight-box {
-        padding: 28px 20px;
-      }
-    }
-
-    /* ═══ Animations ═════════════════════════════════════════════ */
-    .fade-in {
-      opacity: 0;
-      transform: translateY(16px);
-      transition: opacity 0.5s ease, transform 0.5s ease;
-    }
-
-    .fade-in.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    :root{--ink:#eaf2ff;--muted:#a9b7cd;--navy:#081425;--panel:rgba(16,37,65,.72);--line:rgba(188,211,239,.18);--cyan:#62e6e2;--blue:#78a8ff;--orange:#ffb15f;--max:1180px}
+    *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;color:var(--ink);background:var(--navy);font-family:Manrope,Arial,sans-serif;line-height:1.65;overflow-x:hidden}
+    body:before{content:"";position:fixed;inset:0;z-index:-2;opacity:.55;background-image:linear-gradient(rgba(157,192,237,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(157,192,237,.045) 1px,transparent 1px);background-size:44px 44px;mask-image:linear-gradient(to bottom,#000,transparent 75%)}
+    body:after{content:"";position:fixed;z-index:-3;inset:-25%;background:radial-gradient(circle at 12% 8%,rgba(51,115,185,.3),transparent 28%),radial-gradient(circle at 90% 20%,rgba(30,170,170,.17),transparent 24%),radial-gradient(circle at 48% 90%,rgba(99,76,177,.15),transparent 30%)}
+    a{color:inherit;text-decoration:none}.wrap{width:min(calc(100% - 48px),var(--max));margin:auto}
+    .nav{height:68px;border-bottom:1px solid var(--line);display:flex;align-items:center;position:sticky;top:0;z-index:20;background:rgba(8,20,37,.84);backdrop-filter:blur(18px)}
+    .nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:24px}.brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:-.04em;font-size:1.15rem}.brand-mark{width:25px;height:25px;border:2px solid var(--cyan);border-radius:50% 50% 50% 7px;transform:rotate(-25deg);position:relative}.brand-mark:after{content:"";width:6px;height:6px;border-radius:50%;background:var(--cyan);position:absolute;top:4px;right:4px}
+    .nav-links{display:flex;align-items:center;gap:24px;font-size:.74rem;font-family:"DM Mono",monospace;color:var(--muted)}.nav-links a:hover{color:var(--cyan)}.nav-pill{border:1px solid rgba(98,230,226,.5);color:var(--cyan)!important;padding:6px 10px;border-radius:999px}
+    .hero{padding:92px 0 72px;text-align:center}.eyebrow{color:var(--cyan);font:500 .75rem "DM Mono",monospace;letter-spacing:.14em;text-transform:uppercase;display:inline-flex;align-items:center;gap:10px}.eyebrow:before,.eyebrow:after{content:"";height:1px;width:28px;background:var(--cyan);opacity:.65}
+    h1{font-size:clamp(3rem,7.3vw,6.6rem);letter-spacing:-.075em;line-height:.91;margin:22px auto;max-width:1040px;font-weight:800}h1 .w0{color:var(--cyan);font-family:"Source Serif 4",serif;font-weight:600;font-style:italic}.hero h2{max-width:760px;margin:0 auto 27px;font:500 clamp(1.25rem,2vw,1.72rem)/1.35 "Source Serif 4",serif;color:#cad8eb;letter-spacing:-.02em}.authors{font-size:.94rem;max-width:900px;margin:0 auto 8px;color:#f3f7ff}.authors sup{font-family:"DM Mono",monospace;color:var(--cyan);font-size:.65em}.affiliations{margin:0 auto 32px;font:.72rem/1.7 "DM Mono",monospace;letter-spacing:.03em;color:var(--muted)}
+    .hero-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}.button{display:inline-flex;gap:9px;align-items:center;justify-content:center;padding:11px 17px;border-radius:6px;font:500 .74rem "DM Mono",monospace;letter-spacing:.04em;transition:transform .2s,border-color .2s,background .2s;border:1px solid var(--line)}.button:hover{transform:translateY(-2px);border-color:var(--cyan)}.button.primary{color:#062032;background:var(--cyan);border-color:var(--cyan)}.button.primary:hover{background:#9af7f0}.button svg{width:15px;height:15px}
+    .signal-bar{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:13px 0;color:var(--muted);font:.68rem "DM Mono",monospace;letter-spacing:.08em;text-transform:uppercase}.signal-inner{display:flex;justify-content:space-between;gap:24px;overflow:hidden;white-space:nowrap}.signal-item{display:flex;align-items:center;gap:9px}.signal-dot{width:6px;height:6px;background:var(--cyan);border-radius:50%;box-shadow:0 0 12px var(--cyan)}
+    section{scroll-margin-top:78px}.section{padding:106px 0}.section-head{display:grid;grid-template-columns:160px 1fr;gap:25px;align-items:start;margin-bottom:42px}.section-index{color:var(--cyan);font:.74rem "DM Mono",monospace;letter-spacing:.08em;padding-top:13px}.section-index:before{content:"// ";color:var(--blue)}h2{margin:0;font:600 clamp(2.35rem,4.2vw,4.2rem)/1 "Source Serif 4",serif;letter-spacing:-.055em}.section-lede{margin:16px 0 0;max-width:690px;color:var(--muted);font-size:1rem}
+    .demo-section{padding-top:82px}.demo-intro{max-width:690px;color:var(--muted);margin:-21px 0 30px 185px;font-size:.95rem}.demo-filters{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 24px 185px}.filter-chip{border:1px solid var(--line);background:rgba(16,37,65,.5);color:var(--muted);border-radius:999px;padding:8px 13px;font: .65rem "DM Mono",monospace;cursor:pointer;transition:all .18s}.filter-chip:hover,.filter-chip.active{background:rgba(98,230,226,.12);color:var(--cyan);border-color:rgba(98,230,226,.62)}.video-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px}.video-card{grid-column:span 2;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#06101d;transition:transform .25s,border-color .25s,box-shadow .25s}.video-card:nth-child(4){grid-column:2 / span 2}.video-card:hover{transform:translateY(-5px);border-color:rgba(98,230,226,.7);box-shadow:0 18px 35px rgba(0,0,0,.3)}.video-card[hidden]{display:none}.video-frame{position:relative;overflow:hidden;background:#02060c;aspect-ratio:16/10}.video-frame:after{content:"";position:absolute;inset:30% 0 0;background:linear-gradient(transparent,rgba(3,10,19,.55));pointer-events:none}.video-frame video{display:block;width:100%;height:100%;object-fit:cover;background:#02060c}.play-button{position:absolute;z-index:2;left:50%;top:50%;width:66px;height:66px;transform:translate(-50%,-50%);border:1px solid rgba(255,255,255,.75);border-radius:50%;display:grid;place-items:center;background:rgba(98,230,226,.9);color:#061527;box-shadow:0 0 0 9px rgba(98,230,226,.15),0 8px 30px rgba(0,0,0,.38);cursor:pointer;transition:transform .2s,opacity .2s,background .2s}.play-button:hover{transform:translate(-50%,-50%) scale(1.08);background:#a0fff6}.play-button svg{width:22px;height:22px;margin-left:3px}.video-frame.is-playing .play-button{opacity:0;pointer-events:none}.video-frame.is-playing:hover .play-button{opacity:1;pointer-events:auto}.challenge{padding:14px 15px 0}.challenge-name{display:block;color:#f2f6ff;font-size:.8rem;font-weight:700}.challenge-level{display:block;color:var(--orange);font: .6rem "DM Mono",monospace;letter-spacing:.055em;margin-top:5px}.video-caption{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:10px 15px 15px;color:var(--muted);font-size:.66rem}.video-caption span{color:var(--cyan);font:.64rem "DM Mono",monospace;white-space:nowrap}.video-note{color:var(--muted);font:.72rem/1.6 "DM Mono",monospace;margin:17px 0 0}
+    .abstract-layout{display:grid;grid-template-columns:1.25fr .75fr;gap:22px}.abstract{padding:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font:500 1.1rem/1.72 "Source Serif 4",serif;color:#d9e5f5}.abstract strong{color:var(--cyan);font-weight:600}.abstract-aside{display:flex;flex-direction:column;gap:15px}.aside-card{flex:1;padding:24px;border-left:2px solid var(--blue);background:rgba(122,168,255,.06)}.aside-card:nth-child(2){border-color:var(--orange);background:rgba(255,177,95,.055)}.aside-kicker{display:block;color:var(--blue);font:.66rem "DM Mono",monospace;letter-spacing:.09em;margin-bottom:8px}.aside-card:nth-child(2) .aside-kicker{color:var(--orange)}.aside-card p{margin:0;font-size:.83rem;color:var(--muted)}
+    .method-panel{border:1px solid var(--line);background:linear-gradient(135deg,rgba(18,48,81,.82),rgba(9,23,43,.55));border-radius:9px;overflow:hidden}.method-visual{position:relative;padding:26px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:center;gap:clamp(13px,3.1vw,45px);align-items:center;overflow:hidden}.method-visual:before{content:"";position:absolute;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);width:84%;top:50%;opacity:.4}.node{position:relative;z-index:1;width:min(22vw,160px);min-width:80px;padding:13px 8px;background:#0b1c31;border:1px solid rgba(188,211,239,.35);text-align:center;border-radius:5px;color:#dce9f9;font:.66rem/1.4 "DM Mono",monospace}.node b{color:var(--cyan);display:block;font-size:.58rem;letter-spacing:.09em;margin-bottom:4px}.node:nth-child(3) b{color:var(--orange)}
+    .method-cards{display:grid;grid-template-columns:repeat(3,1fr)}.method-card{padding:29px 25px 32px;min-height:232px}.method-card+.method-card{border-left:1px solid var(--line)}.method-number{color:var(--cyan);font:.65rem "DM Mono",monospace;letter-spacing:.08em}.method-card h3{margin:12px 0;font-size:1.05rem;letter-spacing:-.035em}.method-card p{color:var(--muted);font-size:.84rem;margin:0}.method-card em{color:#e6f0ff;font-style:normal}
+    .figure{margin-top:22px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}.figure img{width:100%;display:block;max-height:630px;object-fit:contain}.figure figcaption{padding:13px 17px;background:var(--panel);color:var(--muted);font-size:.77rem}.figure figcaption b{color:var(--cyan)}
+    .paper-figures{display:grid;gap:22px;margin-top:22px}.paper-figures .figure{margin:0}.results-intro{max-width:740px;margin:-14px 0 30px 185px;color:var(--muted);font-size:.9rem}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:8px;background:rgba(9,25,45,.7);margin:18px 0 27px}.results-table{border-collapse:collapse;width:100%;min-width:760px;font-size:.78rem;font-variant-numeric:tabular-nums}.results-table th{font:500 .65rem/1.4 "DM Mono",monospace;text-transform:uppercase;letter-spacing:.045em;color:#b8c9de;text-align:center;background:rgba(91,132,183,.12);padding:13px 11px;border-bottom:1px solid var(--line)}.results-table td{padding:11px 12px;text-align:center;border-bottom:1px solid rgba(188,211,239,.1);color:#d4e0f0}.results-table th:first-child,.results-table td:first-child{text-align:left;padding-left:17px;white-space:nowrap}.results-table tbody tr:last-child td{border-bottom:0}.results-table .ours td{background:rgba(98,230,226,.09);color:#f2ffff;font-weight:700}.results-table .best{color:var(--cyan)!important;font-weight:800}.results-table .second{text-decoration:underline;text-decoration-color:var(--blue);text-underline-offset:4px}.table-note{font-size:.84rem;color:var(--muted);max-width:900px;margin:0 0 22px}.table-note strong{color:var(--ink)}
+    .contributions{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.contribution{padding:25px;border:1px solid var(--line);border-radius:7px;background:rgba(16,37,65,.42)}.contribution-label{color:var(--cyan);font:.64rem "DM Mono",monospace;letter-spacing:.09em}.contribution h3{margin:14px 0 11px;font-size:1.05rem;letter-spacing:-.035em}.contribution p{margin:0;color:var(--muted);font-size:.84rem}
+    .paper-grid{display:grid;grid-template-columns:.8fr 1.2fr;gap:22px}.paper-card,.citation{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:28px}.paper-title{font:600 1.7rem/1.05 "Source Serif 4",serif;letter-spacing:-.04em;margin:14px 0}.paper-card p{color:var(--muted);font-size:.84rem;margin:0 0 22px}.pdf-preview{height:310px;position:relative;overflow:hidden;border:1px solid var(--line);border-radius:5px;background:#e9edf2;margin:0 0 20px;box-shadow:0 10px 30px rgba(0,0,0,.2)}.pdf-preview iframe{display:block;width:100%;height:480px;border:0;background:white;pointer-events:none}.pdf-preview-label{position:absolute;z-index:1;right:10px;top:10px;padding:5px 8px;background:rgba(8,20,37,.82);border:1px solid var(--line);border-radius:3px;color:var(--cyan);font: .58rem "DM Mono",monospace;letter-spacing:.06em}.citation-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;font:.68rem "DM Mono",monospace;color:var(--cyan);letter-spacing:.08em}.copy{cursor:pointer;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:4px;padding:5px 9px;font:.65rem "DM Mono",monospace}.copy:hover{border-color:var(--cyan);color:var(--cyan)}pre{margin:0;white-space:pre-wrap;color:#c5d4e7;font:.73rem/1.7 "DM Mono",monospace}
+    footer{border-top:1px solid var(--line);padding:35px 0 43px;color:var(--muted);font-size:.76rem}.footer-inner{display:flex;justify-content:space-between;gap:20px}.footer-name{color:var(--ink);font-weight:700}
+    @media(max-width:800px){.nav-links a:not(.nav-pill){display:none}.hero{padding:72px 0 55px}.section{padding:74px 0}.section-head{grid-template-columns:1fr;gap:8px;margin-bottom:30px}.section-index{padding-top:0}.demo-intro,.demo-filters,.results-intro{margin:-8px 0 24px}.abstract-layout,.paper-grid{grid-template-columns:1fr}.video-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.video-card,.video-card:nth-child(4){grid-column:auto}.method-cards,.contributions{grid-template-columns:1fr}.method-card+.method-card{border-left:0;border-top:1px solid var(--line)}.footer-inner{flex-direction:column}}
+    @media(max-width:500px){.wrap{width:min(calc(100% - 32px),var(--max))}.nav{height:59px}h1{font-size:3rem}.authors{font-size:.82rem}.method-visual{gap:5px;padding-inline:7px}.node{min-width:66px;font-size:.55rem}.abstract,.paper-card,.citation{padding:22px}.video-grid{grid-template-columns:1fr}.video-card,.video-card:nth-child(4){grid-column:auto}.play-button{width:58px;height:58px}}
+    .video-grid.is-filtered{display:flex;justify-content:center;flex-wrap:wrap}.video-grid.is-filtered .video-card{grid-column:auto;flex:0 1 370px}.video-grid.is-filtered .video-card[hidden]{display:none}
+    @media(max-width:500px){.video-grid.is-filtered .video-card{flex-basis:100%}}
   </style>
 </head>
-
 <body>
-
-  <!-- ─── Navbar ────────────────────────────────────────────── -->
-  <nav class="navbar">
-    <div class="navbar-inner">
-      <div class="navbar-brand">
-        <img src="static/images/logo.png" alt="Lumos" onerror="this.style.display='none'">
-        <!-- <span>PRIME</span> -->
+  <nav class="nav"><div class="wrap"><a class="brand" href="#top" aria-label="PRIME W0 home"><span class="brand-mark" aria-hidden="true"></span>PRIME W0</a><div class="nav-links"><a href="#abstract">Abstract</a><a href="#method">Method</a><a href="#results">Results</a><a href="#demos">Real Robot</a><a href="#paper" class="nav-pill">Paper ↗</a></div></div></nav>
+  <main id="top">
+    <header class="hero wrap">
+      <div class="eyebrow">Embodied intelligence · 2026</div>
+      <h1>PRIME <span class="w0">W0</span></h1>
+      <h2>Physical Priors from World Models<br>for Embodied Manipulation</h2>
+      <p class="authors">Huabin Peng<sup>1,4</sup>, Fagang Jin<sup>1,†</sup>, Yancong Wei<sup>1,3</sup>, Tengfei Ma<sup>1,4,*</sup>, Chuhang Liu<sup>1,3</sup>, Chao Yu<sup>2,3</sup>, Liqing Chen<sup>5</sup></p>
+      <p class="affiliations">1 LUMOS SZ LAB TEAM &nbsp;·&nbsp; 2 LUMOS ROBOTICS &nbsp;·&nbsp; 3 THU &nbsp;·&nbsp; 4 CUHK &nbsp;·&nbsp; 5 NTU<br>† TEAM LEADER &nbsp; * CORRESPONDING AUTHOR</p>
+      <div class="hero-actions"><a class="button primary" href="static/main.pdf" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/></svg>Paper PDF</a><a class="button" href="#demos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="15" height="14" rx="2"/><path d="m18 10 3-2v8l-3-2z"/></svg>Watch real robots</a></div>
+    </header>
+    <div class="signal-bar"><div class="wrap signal-inner"><span class="signal-item"><i class="signal-dot"></i>Hierarchical VLM → Action</span><span class="signal-item"><i class="signal-dot"></i>Asynchronous world-model conditioning</span><span class="signal-item"><i class="signal-dot"></i>Covariance-structured flow matching</span></div></div>
+    <section id="abstract" class="section wrap">
+      <div class="section-head"><div class="section-index">02 / ABSTRACT</div><div><h2>A policy with<br>physical memory.</h2><p class="section-lede">VLA models are compelling instruction followers, but the physical world requires more than the current frame.</p></div></div>
+      <div class="abstract-layout"><article class="abstract">Vision-Language-Action (VLA) models excel at instruction following, yet most remain feed-forward: they condition actions only on the current observation and discard both long-horizon temporal context and the hierarchical structure of VLM representations. We present <strong>PRIME W0</strong>, a hierarchical conditional flow-matching framework that closes this gap through three synergistic designs: (1) per-layer KV injection from a pretrained VLM into an Adaptive MoE action expert; (2) dynamics-aware conditioning via asynchronous world-model subgoal-image prediction and a DINOv2 historical-frame semantic bridge; and (3) Action Dynamic Manifold (ADM) flow matching with covariance-structured noise that respects robot kinematic coupling. PRIME W0 is trained in four stages—VLM pre-training, DAT/NTP visuomotor pre-training, DiT flow-matching decoder assembly with WM injection, and end-to-end SFT—and achieves state-of-the-art results on LIBERO and real-robot benchmarks, with systematic ablations validating each architectural component.</article><aside class="abstract-aside"><div class="aside-card"><span class="aside-kicker">THE GAP</span><p>Feed-forward VLAs compress time and representation hierarchy into a single observation before acting.</p></div><div class="aside-card"><span class="aside-kicker">THE PRIOR</span><p>World-model prediction and historical semantics supply a dynamics-aware bridge from perception to control.</p></div></aside></div>
+    </section>
+    <section id="demos" class="section demo-section wrap">
+      <div class="section-head"><div class="section-index">03 / REAL ROBOT</div><div><h2>Physical skills,<br>in increasing difficulty.</h2><p class="section-lede">Five real-robot demonstrations grouped by the physical challenge each one exposes.</p></div></div>
+      <p class="demo-intro">Choose a capability to focus the examples. Native video controls support scrubbing, playback speed, volume, and fullscreen.</p>
+      <div class="demo-filters" role="group" aria-label="Filter robot demonstrations">
+        <button class="filter-chip active" type="button" data-filter="all" aria-pressed="true">All tasks</button>
+        <button class="filter-chip" type="button" data-filter="flexible" aria-pressed="false">Flexible objects</button>
+        <button class="filter-chip" type="button" data-filter="long" aria-pressed="false">Long-horizon</button>
+        <button class="filter-chip" type="button" data-filter="precision" aria-pressed="false">Precision insertion</button>
+        <button class="filter-chip" type="button" data-filter="human" aria-pressed="false">Human interaction</button>
+        <button class="filter-chip" type="button" data-filter="bimanual" aria-pressed="false">Bimanual coordination</button>
       </div>
-      <div class="navbar-links">
-        <a href="#abstract">Abstract</a>
-        <a href="#method">Method</a>
-        <a href="#results">Results</a>
-        <a href="#contributions">Contributions</a>
-        <a href="#paper">Paper</a>
+      <div class="video-grid">
+        <article class="video-card" data-categories="flexible long bimanual"><div class="video-frame"><video controls playsinline preload="metadata" poster="static/images/demo_cloth_fold.jpg"><source src="static/videos/1642104074.mp4" type="video/mp4">Your browser does not support video playback.</video><button class="play-button" type="button" aria-label="Play bimanual cloth folding"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.8c0-.8.9-1.3 1.6-.9l11 7.2a1.1 1.1 0 0 1 0 1.8l-11 7.2c-.7.4-1.6-.1-1.6-.9z"/></svg></button></div><div class="challenge"><span class="challenge-name">Cloth folding with handoffs</span><span class="challenge-level">CHALLENGE 04 · FLEXIBLE + BIMANUAL</span></div><div class="video-caption"><span>Dual-arm manipulation</span><span>DEMO / 01</span></div></article>
+        <article class="video-card" data-categories="human"><div class="video-frame"><video controls playsinline preload="metadata" poster="static/images/demo_human_interaction.jpg"><source src="static/videos/1694845017.mp4" type="video/mp4">Your browser does not support video playback.</video><button class="play-button" type="button" aria-label="Play shared-workspace manipulation"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.8c0-.8.9-1.3 1.6-.9l11 7.2a1.1 1.1 0 0 1 0 1.8l-11 7.2c-.7.4-1.6-.1-1.6-.9z"/></svg></button></div><div class="challenge"><span class="challenge-name">Manipulation in shared workspace</span><span class="challenge-level">CHALLENGE 03 · HUMAN PROXIMITY</span></div><div class="video-caption"><span>Person nearby during execution</span><span>DEMO / 02</span></div></article>
+        <article class="video-card" data-categories="precision"><div class="video-frame"><video controls playsinline preload="metadata" poster="static/images/demo_precision_insertion.jpg"><source src="static/videos/3476902299.mp4" type="video/mp4">Your browser does not support video playback.</video><button class="play-button" type="button" aria-label="Play precision insertion task"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.8c0-.8.9-1.3 1.6-.9l11 7.2a1.1 1.1 0 0 1 0 1.8l-11 7.2c-.7.4-1.6-.1-1.6-.9z"/></svg></button></div><div class="challenge"><span class="challenge-name">Small-object insertion</span><span class="challenge-level">CHALLENGE 02 · PRECISION</span></div><div class="video-caption"><span>Pen into narrow container</span><span>DEMO / 03</span></div></article>
+        <article class="video-card" data-categories="flexible bimanual"><div class="video-frame"><video controls playsinline preload="metadata" poster="static/images/demo_bimanual_folding.jpg"><source src="static/videos/copy_5D3A0553-F627-4AC1-8FFC-9F0CE812A72E.mp4" type="video/mp4">Your browser does not support video playback.</video><button class="play-button" type="button" aria-label="Play coordinated cloth manipulation"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.8c0-.8.9-1.3 1.6-.9l11 7.2a1.1 1.1 0 0 1 0 1.8l-11 7.2c-.7.4-1.6-.1-1.6-.9z"/></svg></button></div><div class="challenge"><span class="challenge-name">Coordinated cloth flattening</span><span class="challenge-level">CHALLENGE 04 · FLEXIBLE + BIMANUAL</span></div><div class="video-caption"><span>Two arms control deformable fabric</span><span>DEMO / 04</span></div></article>
+        <article class="video-card" data-categories="long"><div class="video-frame"><video controls playsinline preload="metadata" poster="static/images/demo_long_horizon.jpg"><source src="static/videos/copy_72CF7546-E3BE-4E54-B4A8-E6D2F7D9AF62.mp4" type="video/mp4">Your browser does not support video playback.</video><button class="play-button" type="button" aria-label="Play sequential grasp and placement"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.8c0-.8.9-1.3 1.6-.9l11 7.2a1.1 1.1 0 0 1 0 1.8l-11 7.2c-.7.4-1.6-.1-1.6-.9z"/></svg></button></div><div class="challenge"><span class="challenge-name">Sequential grasp and placement</span><span class="challenge-level">CHALLENGE 03 · MULTI-PHASE</span></div><div class="video-caption"><span>Object transfer into target cup</span><span>DEMO / 05</span></div></article>
       </div>
-    </div>
-  </nav>
-
-  <!-- ─── Hero ──────────────────────────────────────────────── -->
-  <section class="hero">
-    <div class="hero-inner">
-      <h1 class="hero-title">
-        PRIME: Physical Priors from World Models for Embodied Manipulation
-      </h1>
-      <p class="hero-subtitle">
-        Overcoming the semantic compression bottleneck in VLA models through
-        dynamic cross-layer semantic fusion and SE(3)-equivariant physical grounding.
-      </p>
-      <p class="hero-authors">
-        <strong>Lumos SZ Lab Team</strong><sup>*</sup>
-      </p>
-      <p class="hero-affiliation">
-        Lumos Robotics &nbsp;&bull;&nbsp;
-        <a href="https://lumosbot.tech" target="_blank" rel="noopener">lumosbot.tech</a>
-        &nbsp;&bull;&nbsp;
-        <a href="mailto:matengfei@lumosbot.tech">matengfei@lumosbot.tech</a>
-      </p>
-      <div class="btn-group">
-        <a class="btn btn-primary" href="static/prime.pdf" target="_blank">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-            <polyline points="10 9 9 9 8 9" />
-          </svg>
-          Paper
-        </a>
-        <a class="btn btn-outline" href="https://github.com/lumosrobotics/PRIME" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="currentColor">
-            <path
-              d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
-          </svg>
-          Code (Coming Soon)
-        </a>
-        <a class="btn btn-outline" href="./" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-            stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="2" y1="12" x2="22" y2="12" />
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-          </svg>
-          arXiv
-        </a>
+      <p class="video-note">Challenge labels describe the visible manipulation demands. Use the timeline to scrub to any moment or enter fullscreen for a closer view.</p>
+    </section>
+    <section id="method" class="section wrap">
+      <div class="section-head"><div class="section-index">04 / METHOD</div><div><h2>From vision hierarchy<br>to action dynamics.</h2><p class="section-lede">PRIME W0 preserves the VLM's rich, layer-wise knowledge while adding temporal physical priors precisely where action generation needs them.</p></div></div>
+      <div class="method-panel"><div class="method-visual" aria-label="PRIME W0 processing pipeline"><div class="node"><b>OBSERVE</b>VLM hierarchy</div><div class="node"><b>PREDICT</b>World-model subgoal</div><div class="node"><b>ACT</b>Adaptive MoE + ADM</div></div><div class="method-cards"><article class="method-card"><span class="method-number">01 / REPRESENTATION</span><h3>Per-layer KV injection</h3><p>Hidden states from a pretrained VLM are injected at every action layer, letting an <em>Adaptive MoE</em> expert select the representation depth the current action requires.</p></article><article class="method-card"><span class="method-number">02 / DYNAMICS</span><h3>World-model semantic bridge</h3><p>An asynchronously predicted subgoal image is paired with a DINOv2 bridge over historical frames, so the controller remains grounded in <em>how the scene is changing</em>.</p></article><article class="method-card"><span class="method-number">03 / CONTROL</span><h3>Action Dynamic Manifold</h3><p>Covariance-structured noise aligns flow matching with robot kinematic coupling, shaping a more physically coherent <em>action distribution</em>.</p></article></div></div>
+      <div class="paper-figures">
+        <figure class="figure"><img src="static/images/arch.png" alt="PRIME W0 model architecture"><figcaption><b>Figure 1 · PRIME W0 architecture.</b> Hierarchical VLM features, asynchronous world-model subgoals, historical semantics, and the ADM action expert.</figcaption></figure>
+        <figure class="figure"><img src="static/images/training_stages.png" alt="Four-stage training pipeline for PRIME W0"><figcaption><b>Figure 2 · Four-stage training recipe.</b> VLM pre-training, DAT/NTP visuomotor pre-training, DiT decoder assembly with world-model injection, and end-to-end SFT.</figcaption></figure>
       </div>
-    </div>
-  </section>
-
-  <!-- ─── Abstract ──────────────────────────────────────────── -->
-  <section id="abstract" class="section">
-    <div class="section-number">01</div>
-    <h2 class="section-title">Abstract</h2>
-    <p class="section-subtitle">Core motivation and approach overview</p>
-    <div class="abstract-box fade-in">
-      <p>
-        Vision-Language-Action (VLA) models inherit the inductive bias of language models, yet
-        physical manipulation demands fundamentally different priors: object dynamics, contact
-        constraints, and SE(3)-structured geometry that static image-text pretraining cannot provide.
-        Existing architectures further suffer from a <em>semantic compression bottleneck</em>—
-        multi-layer VLM representations are fused statically, without adapting to the evolving
-        demands across diffusion denoising stages.
-      </p>
-      <br>
-      <p>
-        We present <strong>PrimeWM-VLA</strong>, a VLA foundation model addressing these limitations
-        through two contributions: (1) <strong>Joint Infusion</strong> via
-        <strong>Hierarchical Soft Routing (HSR)</strong>, <strong>Per-Layer KV Projection
-          (PLKVProj)</strong>, and <strong>Timestep-Gated KV Infusion (TGI)</strong>, which dynamically
-        routes multi-level VLM representations conditioned on denoising timestep and is paired with
-        <strong>MeanFlow matching</strong> for low-latency single-step action inference; and (2)
-        <strong>World Model Priors</strong>, where intermediate decoder features of a compact world
-        model—trained on human-centric and robot manipulation video—are injected as view-invariant
-        physical priors into the policy, without requiring future-frame rollout at inference time.
-      </p>
-      <br>
-      <p>
-        Experiments across multiple real-robot platforms and manipulation tasks show consistent
-        improvements over baselines, with ablations confirming that world model priors yield
-        significant gains in generalization and camera-robustness beyond what static supervision
-        alone can provide.
-      </p>
-    </div>
-  </section>
-
-  <!-- ─── SE(3) Insight ─────────────────────────────────────── -->
-  <section class="section-alt">
-    <div class="section">
-      <div class="highlight-box fade-in">
-        <h3>Why SE(3) Geometric Inductive Bias Matters</h3>
-        <p>
-          Current VLAs are built on the inductive bias of language models &mdash; yet physical
-          manipulation demands a fundamentally different prior: the world is not a sequence of
-          tokens, but a space of objects and forces governed by
-          <span class="keyword">SE(3)</span> symmetry. Without this geometric inductive bias,
-          no amount of data can teach a robot to truly generalize. PrimeWM-VLA addresses this
-          by progressively re-biasing the VLA representation pipeline &mdash; from
-          <span class="keyword">flat patch embeddings</span> toward
-          <span class="keyword">object-centric 3D tokens</span> and ultimately
-          <span class="keyword">SE(3)-equivariant action outputs</span> &mdash; injecting
-          physical structure at every stage of perception and control.
-        </p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ─── Method ────────────────────────────────────────────── -->
-  <section id="method" class="section">
-    <div class="section-number">02</div>
-    <h2 class="section-title">Method</h2>
-    <p class="section-subtitle">Three synergistic components of Joint Infusion</p>
-
-    <!-- Pipeline Figure -->
-    <div class="figure-container fade-in">
-      <img src="static/images/image.png" alt="PrimeWM-VLA Overview Pipeline"
-        onerror="this.parentElement.innerHTML='<div style=\'padding:60px;background:rgba(61,57,41,0.04);border:1px solid rgba(61,57,41,0.15);color:rgba(61,57,41,0.6);font-size:0.88rem;font-family:var(--font-mono)\'>[ Pipeline overview figure &mdash; see PDF for full resolution ]</div>'">
-      <p class="figure-caption">
-        <strong>Figure 1:</strong> PrimeWM-VLA overview. The VLM backbone produces hierarchical
-        hidden states from all layers. HSR dynamically weights these representations conditioned
-        on diffusion timestep, shifting from deep semantic layers (early denoising) to shallow
-        perceptual layers (late denoising). PLKVProj provides layer-specialized interpretation,
-        and TGI adaptively modulates injection strength before feeding into the Action Diffusion
-        Decoder.
-      </p>
-    </div>
-
-    <!-- Three Component Cards -->
-    <div class="method-grid fade-in">
-      <!-- HSR -->
-      <div class="method-card">
-        <div class="method-card-icon icon-hsr">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-          </svg>
-        </div>
-        <h3>Hierarchical Soft Routing</h3>
-        <p>
-          A timestep-conditioned routing mechanism that dynamically selects and weights
-          representations from <em>all</em> VLM layers. During early denoising steps, HSR
-          preferentially routes high-level semantic features from deeper layers; as denoising
-          progresses, it gradually shifts emphasis toward low-level perceptual features from
-          shallower layers. This enables a principled coarse-to-fine transition.
-        </p>
-        <span class="tag tag-hsr">Timestep-Conditioned</span>
-      </div>
-
-      <!-- PLKVProj -->
-      <div class="method-card">
-        <div class="method-card-icon icon-plkv">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7" />
-            <rect x="14" y="3" width="7" height="7" />
-            <rect x="3" y="14" width="7" height="7" />
-            <rect x="14" y="14" width="7" height="7" />
-          </svg>
-        </div>
-        <h3>Per-Layer KV Projection</h3>
-        <p>
-          Independent key-value projection modules for each action block, allowing different
-          layers to specialize in interpreting distinct aspects of language representations
-          without interference. Rather than sharing a single projection across all layers,
-          PLKVProj allocates dedicated projection spaces, preserving the representational
-          diversity of the VLM hierarchy.
-        </p>
-        <span class="tag tag-plkv">Layer-Specialized</span>
-      </div>
-
-      <!-- TGI -->
-      <div class="method-card">
-        <div class="method-card-icon icon-tgi">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 20V10" />
-            <path d="M18 20V4" />
-            <path d="M6 20v-4" />
-          </svg>
-        </div>
-        <h3>Timestep-Gated KV Infusion</h3>
-        <p>
-          A sigmoid gating mechanism conditioned on diffusion timestep embeddings that
-          adaptively modulates the strength of language feature injection across denoising
-          stages. TGI ensures that language conditioning is strong when the denoiser needs
-          semantic guidance (early steps) and attenuated when it requires perceptual
-          refinement (late steps).
-        </p>
-        <span class="tag tag-tgi">Adaptive Gating</span>
-      </div>
-    </div>
-
-    <!-- Infusion Detail Figure -->
-    <div class="figure-container fade-in" style="margin-top: 48px;">
-      <img src="static/images/image2.png" alt="Joint Infusion Module Detail"
-        onerror="this.parentElement.innerHTML='<div style=\'padding:60px;background:rgba(61,57,41,0.04);border:1px solid rgba(61,57,41,0.15);color:rgba(61,57,41,0.6);font-size:0.88rem;font-family:var(--font-mono)\'>[ Joint Infusion detail figure &mdash; see PDF for full resolution ]</div>'">
-      <p class="figure-caption">
-        <strong>Figure 2:</strong> Joint Infusion module detail. HSR computes timestep-conditioned
-        softmax routing weights \( w_l(t) \) over all VLM layers and scales each hidden state.
-        PLKVProj applies independent key-value projections per layer, then concatenates the
-        projected KV pairs. TGI modulates the fused KV via a sigmoid gate \( \sigma(\mathbf{w}_t) \)
-        before cross-attention with the denoiser query.
-      </p>
-    </div>
-  </section>
-
-  <!-- ─── Results ───────────────────────────────────────────── -->
-  <section id="results" class="section-alt">
-    <div class="section">
-      <div class="section-number">03</div>
-      <h2 class="section-title">Results</h2>
-      <p class="section-subtitle">State-of-the-art performance across standard and physically challenging benchmarks</p>
-
-      <p class="table-caption fade-in">
-        <strong>Table 1:</strong> LIBERO benchmark comparison. All numbers are task success
-        rates (%). Best results are bold, second-best results are underlined.
-      </p>
-      <div class="results-table-wrap fade-in">
-        <table class="results-table">
-          <thead>
-            <tr>
-              <th>Method</th>
-              <th>LIBERO-Spatial</th>
-              <th>LIBERO-Object</th>
-              <th>LIBERO-Goal</th>
-              <th>LIBERO-Long</th>
-              <th>Average</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>OpenVLA [15]</td>
-              <td>84.7</td>
-              <td>88.4</td>
-              <td>79.2</td>
-              <td>53.7</td>
-              <td>76.5</td>
-            </tr>
-            <tr>
-              <td>&pi;<sub>0</sub>-FAST [27]</td>
-              <td>96.4</td>
-              <td>96.8</td>
-              <td>88.6</td>
-              <td>60.2</td>
-              <td>85.5</td>
-            </tr>
-            <tr>
-              <td>GR00T-N1 [25]</td>
-              <td>94.4</td>
-              <td>97.6</td>
-              <td>93.0</td>
-              <td>90.6</td>
-              <td>93.9</td>
-            </tr>
-            <tr>
-              <td>&pi;<sub>0</sub> [5]</td>
-              <td>96.8</td>
-              <td>98.8</td>
-              <td>95.8</td>
-              <td>85.2</td>
-              <td>94.2</td>
-            </tr>
-            <tr>
-              <td>UniVLA [7]</td>
-              <td>95.4</td>
-              <td>98.8</td>
-              <td>93.6</td>
-              <td>94.0</td>
-              <td>95.5</td>
-            </tr>
-            <tr>
-              <td>Discrete Diffusion VLA [19]</td>
-              <td>97.2</td>
-              <td>98.6</td>
-              <td>97.4</td>
-              <td>92.0</td>
-              <td>96.3</td>
-            </tr>
-            <tr>
-              <td>OpenVLA-OFT [16]</td>
-              <td>97.6</td>
-              <td>98.4</td>
-              <td>97.9</td>
-              <td>94.5</td>
-              <td>97.1</td>
-            </tr>
-            <tr>
-              <td>MemoryVLA [32]</td>
-              <td>98.4</td>
-              <td>98.4</td>
-              <td>96.4</td>
-              <td>93.4</td>
-              <td>96.7</td>
-            </tr>
-            <tr>
-              <td>&pi;<sub>0.5</sub> [28]</td>
-              <td class="second">98.8</td>
-              <td>98.2</td>
-              <td>98.0</td>
-              <td>92.4</td>
-              <td>96.9</td>
-            </tr>
-            <tr>
-              <td>FLOWER [30]</td>
-              <td>97.5</td>
-              <td>99.1</td>
-              <td>96.1</td>
-              <td class="second">94.9</td>
-              <td>96.9</td>
-            </tr>
-            <tr>
-              <td>EO-1 [29]</td>
-              <td class="highlight"><strong>99.7</strong></td>
-              <td class="second">99.8</td>
-              <td class="highlight"><strong>99.2</strong></td>
-              <td>94.8</td>
-              <td class="second">98.2</td>
-            </tr>
-            <tr class="ours">
-              <td><strong>PRIME (Ours)</strong></td>
-              <td class="second">98.8</td>
-              <td class="highlight"><strong>100.0</strong></td>
-              <td class="second">99.0</td>
-              <td class="highlight"><strong>98.6</strong></td>
-              <td class="highlight"><strong>99.1</strong></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p class="results-note fade-in">
-        PRIME achieves the highest average success rate across the four LIBERO suites,
-        surpassing the previous best EO-1 by 0.9 percentage points. The largest gain appears
-        on LIBERO-Long, where PRIME reaches 98.6% and improves over EO-1 by 3.8 percentage
-        points, indicating stronger long-horizon reasoning. On LIBERO-Object, PRIME achieves
-        a perfect 100.0% success rate.
-      </p>
-
-      <p class="table-caption fade-in">
-        <strong>Table 2:</strong> Real-robot in-house task comparison. All methods are evaluated
-        on the same physical hardware under identical conditions. Numbers are task success rates (%).
-      </p>
-      <div class="results-table-wrap fade-in">
-        <table class="results-table">
-          <thead>
-            <tr>
-              <th>Task</th>
-              <th>OpenVLA</th>
-              <th>GR00T-N1.6</th>
-              <th>&pi;<sub>0.5</sub></th>
-              <th>PRIME</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Pick-and-place</td>
-              <td>39.1</td>
-              <td>75.3</td>
-              <td class="second">81.4</td>
-              <td class="highlight"><strong>93.7</strong></td>
-            </tr>
-            <tr>
-              <td>Stacking</td>
-              <td>25.2</td>
-              <td>61.8</td>
-              <td class="second">67.9</td>
-              <td class="highlight"><strong>70.1</strong></td>
-            </tr>
-            <tr>
-              <td>Cloth folding</td>
-              <td>4.6</td>
-              <td>21.2</td>
-              <td class="second">85.4</td>
-              <td class="highlight"><strong>89.1</strong></td>
-            </tr>
-            <tr>
-              <td>Small obj. grasp</td>
-              <td>8.3</td>
-              <td>26.7</td>
-              <td class="second">59.2</td>
-              <td class="highlight"><strong>61.8</strong></td>
-            </tr>
-            <tr>
-              <td>Assembly</td>
-              <td>1.4</td>
-              <td>22.1</td>
-              <td class="second">51.8</td>
-              <td class="highlight"><strong>75.9</strong></td>
-            </tr>
-            <tr class="ours">
-              <td><strong>Average</strong></td>
-              <td>15.7</td>
-              <td>41.4</td>
-              <td class="second">69.1</td>
-              <td class="highlight"><strong>78.1</strong></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p class="results-note fade-in">
-        On real-robot tasks, PRIME reaches a 78.1% average success rate, outperforming
-        &pi;<sub>0.5</sub> by 9.0 percentage points and OpenVLA by 62.4 percentage points.
-        Gains are especially clear on assembly, pick-and-place, and cloth folding, where
-        physical priors help with contact-rich and deformable-object manipulation.
-      </p>
-
-      <div class="stats-grid fade-in">
-        <div class="stat-card">
-          <div class="stat-value">99.1%</div>
-          <div class="stat-label">Average success<br>across LIBERO suites</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">100.0%</div>
-          <div class="stat-label">Success rate<br>on LIBERO-Object</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">78.1%</div>
-          <div class="stat-label">Average success<br>on real-robot tasks</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ─── Contributions ─────────────────────────────────────── -->
-  <section id="contributions" class="section">
-    <div class="section-number">04</div>
-    <h2 class="section-title">Contributions</h2>
-    <p class="section-subtitle">Key contributions of this work</p>
-    <ul class="contrib-list fade-in">
-      <li class="contrib-item">
-        <div class="contrib-num">1</div>
-        <div class="contrib-text">
-          We identify and formalize the <strong>semantic compression bottleneck</strong> in
-          current VLA architectures, showing that relying solely on the final VLM hidden state
-          discards hierarchical representations critical for fine-grained action generation.
-        </div>
-      </li>
-      <li class="contrib-item">
-        <div class="contrib-num">2</div>
-        <div class="contrib-text">
-          We propose <strong>Hierarchical Soft Routing (HSR)</strong>, a timestep-conditioned
-          routing mechanism that aligns VLM layer abstraction levels with diffusion denoising
-          stages for principled coarse-to-fine action generation.
-        </div>
-      </li>
-      <li class="contrib-item">
-        <div class="contrib-num">3</div>
-        <div class="contrib-text">
-          We introduce <strong>Per-Layer KV Projection (PLKVProj)</strong> and
-          <strong>Timestep-Gated KV Infusion (TGI)</strong>, which together provide
-          layer-specialized language interpretation and adaptive injection strength, enabling
-          structured cross-layer semantic fusion.
-        </div>
-      </li>
-      <li class="contrib-item">
-        <div class="contrib-num">4</div>
-        <div class="contrib-text">
-          We demonstrate that PrimeWM-VLA significantly enhances the expressiveness and
-          controllability of language-conditioned action diffusion while maintaining
-          <strong>full backward compatibility</strong> with &pi;<sub>0.5</sub>-style architectures,
-          establishing new state-of-the-art results across standard and physically challenging
-          benchmarks.
-        </div>
-      </li>
-    </ul>
-  </section>
-
-  <!-- ─── Paper / Citation ──────────────────────────────────── -->
-  <section id="paper" class="section-alt">
-    <div class="section">
-      <div class="section-number">05</div>
-      <h2 class="section-title">Paper &amp; Citation</h2>
-      <p class="section-subtitle">Download the paper and cite our work</p>
-
-      <div class="paper-grid fade-in">
-        <!-- Paper Preview Card -->
-        <div class="paper-card">
-          <div class="paper-preview">
-            PrimeWM-VLA<br>Joint Infusion of<br>Multi-Level VLM<br>Representations
-          </div>
-          <a class="btn btn-primary" href="static/prime.pdf" target="_blank"
-            style="width:100%; justify-content:center;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" style="width:14px;height:14px">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Download PDF
-          </a>
-        </div>
-
-        <!-- BibTeX Card -->
-        <div class="bibtex-card">
-          <div class="bibtex-header">
-            <span class="bibtex-label">BibTeX</span>
-            <button class="bibtex-copy-btn" onclick="copyBibtex()" id="copy-btn">Copy</button>
-          </div>
-          <pre class="bibtex-code" id="bibtex">@article{primewmvla2026,
-  title={PrimeWM-VLA: Joint Infusion of Multi-Level
-         VLM Representations for Language-Conditioned
-         Action Diffusion},
-  author={Lumos SZ Lab Team},
+    </section>
+    <section id="results" class="section wrap">
+      <div class="section-head"><div class="section-index">05 / RESULTS</div><div><h2>Strong in simulation.<br>Stronger in the real world.</h2><p class="section-lede">PRIME W0 pairs state-of-the-art LIBERO performance with consistent gains on contact-rich physical tasks.</p></div></div>
+      <h3 class="contribution-label">TABLE 1 · LIBERO TASK SUCCESS (%)</h3>
+      <div class="table-wrap"><table class="results-table"><thead><tr><th>Method</th><th>Spatial</th><th>Object</th><th>Goal</th><th>Long</th><th>Average</th></tr></thead><tbody>
+        <tr><td>OpenVLA [15]</td><td>84.7</td><td>88.4</td><td>79.2</td><td>53.7</td><td>76.5</td></tr>
+        <tr><td>π0-FAST [25]</td><td>96.4</td><td>96.8</td><td>88.6</td><td>60.2</td><td>85.5</td></tr>
+        <tr><td>GR00T-N1 [24]</td><td>94.4</td><td>97.6</td><td>93.0</td><td>90.6</td><td>93.9</td></tr>
+        <tr><td>π0 [5]</td><td>96.8</td><td>98.8</td><td>95.8</td><td>85.2</td><td>94.2</td></tr>
+        <tr><td>UniVLA [7]</td><td>95.4</td><td>98.8</td><td>93.6</td><td>94.0</td><td>95.5</td></tr>
+        <tr><td>Discrete Diffusion VLA [19]</td><td>97.2</td><td>98.6</td><td>97.4</td><td>92.0</td><td>96.3</td></tr>
+        <tr><td>OpenVLA-OFT [16]</td><td>97.6</td><td>98.4</td><td>97.9</td><td>94.5</td><td>97.1</td></tr>
+        <tr><td>MemoryVLA [30]</td><td>98.4</td><td>98.4</td><td>96.4</td><td>93.4</td><td>96.7</td></tr>
+        <tr><td>π0.5 [26]</td><td class="second">98.8</td><td>98.2</td><td>98.0</td><td>92.4</td><td>96.9</td></tr>
+        <tr><td>FLOWER [28]</td><td>97.5</td><td>99.1</td><td>96.1</td><td>94.9</td><td>96.9</td></tr>
+        <tr><td>EO-1 [27]</td><td class="best">99.7</td><td class="second">99.8</td><td class="best">99.2</td><td>94.8</td><td>98.4</td></tr>
+        <tr class="ours"><td>PRIME W0 (Ours)</td><td class="second">98.8</td><td class="best">100.0</td><td class="second">99.0</td><td class="best">98.6</td><td class="best">99.1</td></tr>
+      </tbody></table></div>
+      <p class="table-note"><strong>PRIME W0 reaches 99.1% average success</strong>, with the strongest score on LIBERO-Object (100.0%) and LIBERO-Long (98.6%). Bold marks best; underline marks second best.</p>
+      <h3 class="contribution-label">TABLE 2 · REAL-ROBOT TASK SUCCESS (%)</h3>
+      <div class="table-wrap"><table class="results-table"><thead><tr><th>Task</th><th>OpenVLA</th><th>GR00T-N1.6</th><th>π0.5</th><th>PRIME W0</th></tr></thead><tbody>
+        <tr><td>Pick-and-place</td><td>39.1</td><td>75.3</td><td class="second">81.4</td><td class="best">93.7</td></tr>
+        <tr><td>Stacking</td><td>25.2</td><td>61.8</td><td class="second">67.9</td><td class="best">70.1</td></tr>
+        <tr><td>Cloth folding</td><td>4.6</td><td>21.2</td><td class="second">85.4</td><td class="best">89.1</td></tr>
+        <tr><td>Small-object grasping</td><td>8.3</td><td>26.7</td><td class="second">59.2</td><td class="best">61.8</td></tr>
+        <tr><td>Assembly</td><td>1.4</td><td>22.1</td><td class="second">51.8</td><td class="best">75.9</td></tr>
+        <tr class="ours"><td>Average</td><td>15.7</td><td>41.4</td><td class="second">69.1</td><td class="best">78.1</td></tr>
+      </tbody></table></div>
+      <p class="table-note">All methods use the same physical hardware under identical conditions. Gains are largest in temporally extended, contact-rich tasks: <strong>cloth folding (+3.7 points), small-object grasping (+2.6), and assembly (+24.1)</strong> over π0.5. These tasks require stable phase tracking across control cycles—the regime targeted by world-model subgoal injection, historical tokens W<sub>hist</sub>, and phase-aware MoE routing.</p>
+    </section>
+    <section class="section wrap"><div class="section-head"><div class="section-index">06 / CONTRIBUTIONS</div><div><h2>Three priors,<br>one policy.</h2></div></div><div class="contributions"><article class="contribution"><span class="contribution-label">HIERARCHY</span><h3>VLM features without collapse</h3><p>Layer-wise KV injection avoids discarding the detailed visual structure distributed throughout a pretrained VLM.</p></article><article class="contribution"><span class="contribution-label">TEMPORALITY</span><h3>World models at action time</h3><p>Asynchronous subgoal prediction and historical-frame semantics make the control process explicitly dynamics-aware.</p></article><article class="contribution"><span class="contribution-label">PHYSICS</span><h3>Manifold-aware actions</h3><p>ADM flow matching respects kinematic correlations instead of treating each action dimension as independent noise.</p></article></div></section>
+    <section id="paper" class="section wrap"><div class="section-head"><div class="section-index">07 / PAPER</div><div><h2>Read and cite.</h2><p class="section-lede">The full paper describes the four-stage training recipe, benchmark results, and component ablations.</p></div></div><div class="paper-grid"><article class="paper-card"><div class="pdf-preview" aria-label="Live preview of the first page of the paper"><span class="pdf-preview-label">PAGE 01 · LIVE PDF</span><iframe src="static/main.pdf#page=1&amp;view=FitH&amp;toolbar=0&amp;navpanes=0" title="PRIME W0 paper, first page preview" loading="lazy"></iframe></div><span class="contribution-label">PREPRINT</span><div class="paper-title">PRIME W0:<br>Physical Priors from World Models</div><p>Live preview from the current PDF. Replace the PDF file to update this preview automatically.</p><a class="button primary" href="static/main.pdf" target="_blank" rel="noopener">Open full paper ↗</a></article><article class="citation"><div class="citation-head"><span>BIBTEX</span><button class="copy" type="button" id="copy-button">COPY</button></div><pre id="bibtex">@article{peng2026primew0,
+  title={PRIME W0: Physical Priors from World
+    Models for Embodied Manipulation},
+  author={Peng, Huabin and Jin, Fagang and Wei,
+    Yancong and Ma, Tengfei and Liu, Chuhang and
+    Yu, Chao and Chen, Liqing},
   journal={arXiv preprint},
   year={2026}
-}</pre>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ─── Footer ────────────────────────────────────────────── -->
-  <footer class="footer">
-    <div class="footer-inner">
-      <p class="footer-title">PrimeWM-VLA</p>
-      <p>&copy; 2026 <a href="https://lumosrobotics.ai" target="_blank" rel="noopener">Lumos Robotics</a>. All rights
-        reserved.</p>
-      <p style="margin-top:4px;">Physical pRIors from world Models for Embodied Manipulation</p>
-    </div>
-  </footer>
-
-  <!-- ─── Scripts ───────────────────────────────────────────── -->
+}</pre></article></div></section>
+  </main>
+  <footer><div class="wrap footer-inner"><span class="footer-name">PRIME W0</span><span>Physical Priors from World Models for Embodied Manipulation</span><span>© 2026 Lumos Robotics</span></div></footer>
   <script>
-    // Scroll-triggered fade-in
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
-        }
+    document.querySelectorAll('.video-frame').forEach(frame => {
+      const video = frame.querySelector('video');
+      const button = frame.querySelector('.play-button');
+      button.addEventListener('click', () => {
+        if (video.paused) video.play().catch(() => {});
+        else video.pause();
       });
-    }, { threshold: 0.1 });
-
-    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
-
-    // Copy BibTeX
-    function copyBibtex() {
-      const bibtex = document.getElementById('bibtex').textContent;
-      navigator.clipboard.writeText(bibtex).then(() => {
-        const btn = document.getElementById('copy-btn');
-        btn.textContent = 'Copied!';
-        setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
-      });
-    }
-
-    // Smooth scroll offset for fixed navbar
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-      anchor.addEventListener('click', function (e) {
-        e.preventDefault();
-        const target = document.querySelector(this.getAttribute('href'));
-        if (target) {
-          window.scrollTo({
-            top: target.offsetTop - 66,
-            behavior: 'smooth'
-          });
-        }
+      video.addEventListener('play', () => frame.classList.add('is-playing'));
+      video.addEventListener('pause', () => frame.classList.remove('is-playing'));
+      video.addEventListener('ended', () => frame.classList.remove('is-playing'));
+    });
+    document.querySelectorAll('.filter-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const category = chip.dataset.filter;
+        document.querySelectorAll('.filter-chip').forEach(item => {
+          const selected = item === chip;
+          item.classList.toggle('active', selected);
+          item.setAttribute('aria-pressed', String(selected));
+        });
+        document.querySelector('.video-grid').classList.toggle('is-filtered', category !== 'all');
+        document.querySelectorAll('.video-card').forEach(card => {
+          const categories = card.dataset.categories.split(/\s+/).filter(Boolean);
+          card.hidden = category !== 'all' && !categories.includes(category);
+          if (card.hidden) card.querySelector('video').pause();
+        });
       });
     });
+    document.getElementById('copy-button').addEventListener('click',async()=>{const b=document.getElementById('copy-button');try{await navigator.clipboard.writeText(document.getElementById('bibtex').textContent);b.textContent='COPIED';setTimeout(()=>b.textContent='COPY',1800)}catch(_){b.textContent='SELECT TEXT'}});
   </script>
-
-</body>
-
-</html>
